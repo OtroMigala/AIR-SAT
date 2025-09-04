@@ -33,7 +33,7 @@ class DataManager:
         self.waypoints = []
         
     def _init_data_buffers(self):
-        """Inicializa todos los buffers de datos con la estructura original"""
+        """Inicializa todos los buffers de datos con la estructura original y nuevos sensores"""
         # Buffers para GPS - MANTIENE ESTRUCTURA EXACTA ORIGINAL
         self.gps_data = {
             'latitude': deque(maxlen=self.max_data_points),
@@ -42,7 +42,9 @@ class DataManager:
             'speed': deque(maxlen=self.max_data_points),
             'satellites': deque(maxlen=self.max_data_points),
             'hdop': deque(maxlen=self.max_data_points),
-            'vdop': deque(maxlen=self.max_data_points)
+            'vdop': deque(maxlen=self.max_data_points),
+            'course': deque(maxlen=self.max_data_points),
+            'fix_quality': deque(maxlen=self.max_data_points)
         }
         
         # Buffers para BMP280 - MANTIENE ESTRUCTURA EXACTA ORIGINAL
@@ -58,6 +60,7 @@ class DataManager:
             'accel_x': deque(maxlen=self.max_data_points),
             'accel_y': deque(maxlen=self.max_data_points),
             'accel_z': deque(maxlen=self.max_data_points),
+            'total_accel': deque(maxlen=self.max_data_points),
             'gyro_x': deque(maxlen=self.max_data_points),
             'gyro_y': deque(maxlen=self.max_data_points),
             'gyro_z': deque(maxlen=self.max_data_points),
@@ -68,6 +71,45 @@ class DataManager:
             'pitch': deque(maxlen=self.max_data_points),
             'yaw': deque(maxlen=self.max_data_points),
             'heading': deque(maxlen=self.max_data_points)
+        }
+        
+        # Nuevos buffers para SPS30 (Sensor de Partículas)
+        self.sps30_data = {
+            'pm1_0': deque(maxlen=self.max_data_points),
+            'pm2_5': deque(maxlen=self.max_data_points),
+            'pm4_0': deque(maxlen=self.max_data_points),
+            'pm10': deque(maxlen=self.max_data_points),
+            'nc0_5': deque(maxlen=self.max_data_points),
+            'nc1_0': deque(maxlen=self.max_data_points),
+            'nc2_5': deque(maxlen=self.max_data_points),
+            'nc4_0': deque(maxlen=self.max_data_points),
+            'nc10': deque(maxlen=self.max_data_points),
+            'typical_size': deque(maxlen=self.max_data_points)
+        }
+        
+        # Nuevos buffers para MQ135 (Calidad del Aire)
+        self.mq135_data = {
+            'lpg': deque(maxlen=self.max_data_points),
+            'co': deque(maxlen=self.max_data_points),
+            'smoke': deque(maxlen=self.max_data_points),
+            'nh4': deque(maxlen=self.max_data_points),
+            'co2': deque(maxlen=self.max_data_points),
+            'alcohol': deque(maxlen=self.max_data_points),
+            'ro': deque(maxlen=self.max_data_points)
+        }
+        
+        # Nuevos buffers para MH-Z19 (CO₂)
+        self.mhz19_data = {
+            'co2_ppm': deque(maxlen=self.max_data_points),
+            'temp': deque(maxlen=self.max_data_points),
+            'range': deque(maxlen=self.max_data_points)
+        }
+        
+        # Buffer para información de comunicación LoRa
+        self.lora_data = {
+            'rssi': deque(maxlen=self.max_data_points),
+            'snr': deque(maxlen=self.max_data_points),
+            'packet_count': deque(maxlen=self.max_data_points)
         }
     
     def _init_sensor_data(self):
