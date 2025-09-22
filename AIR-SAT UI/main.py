@@ -79,12 +79,12 @@ class GPSGy91Monitor:
         header_frame.pack(fill="x", padx=5, pady=5)
         
         title_label = ctk.CTkLabel(header_frame, 
-                                 text="🛰️ SISTEMA GPS + GY91 - NAVEGACIÓN AVANZADA",
+                                 text="SISTEMA GPS + GY91 - NAVEGACION AVANZADA",
                                  font=ctk.CTkFont(size=20, weight="bold"))
         title_label.pack(pady=5)
         
         subtitle_label = ctk.CTkLabel(header_frame,
-                                    text="GPS (Posicionamiento Global) + BMP280 (Barómetro) + MPU9250 (IMU 9-DOF)",
+                                    text="GPS (Posicionamiento Global) + BMP280 (Barometro) + MPU9250 (IMU 9-DOF)",
                                     font=ctk.CTkFont(size=12))
         subtitle_label.pack(pady=2)
     
@@ -94,7 +94,7 @@ class GPSGy91Monitor:
         conn_frame.pack(fill="x", padx=5, pady=5)
         
         # Botón refrescar puertos
-        ctk.CTkButton(conn_frame, text="↻", width=30,
+        ctk.CTkButton(conn_frame, text="Refresh", width=60,
                     command=self.update_ports).pack(side="left", padx=5)
         
         # Selector de puerto
@@ -126,7 +126,7 @@ class GPSGy91Monitor:
         self.data_count_label.pack(side="left", padx=10)
         
         # Control de gráficas
-        self.plot_toggle = ctk.CTkButton(conn_frame, text="⏸️ Pausar Gráficas",
+        self.plot_toggle = ctk.CTkButton(conn_frame, text="Pausar Graficas",
                                        command=self.toggle_plotting)
         self.plot_toggle.pack(side="left", padx=10)
     
@@ -213,9 +213,9 @@ class GPSGy91Monitor:
         self.plotting_enabled = not self.plotting_enabled
         
         if self.plotting_enabled:
-            self.plot_toggle.configure(text="⏸️ Pausar Gráficas")
+            self.plot_toggle.configure(text="Pausar Graficas")
         else:
-            self.plot_toggle.configure(text="▶️ Reanudar Gráficas")
+            self.plot_toggle.configure(text="Reanudar Graficas")
             
         # Notificar al manager de plots si está cargado
         if self.plots_manager:
@@ -254,7 +254,7 @@ class GPSGy91Monitor:
     
     def show_error_message(self, message):
         """Muestra mensaje de error al usuario"""
-        self.realtime_monitor.add_status_message(f"❌ ERROR: {message}")
+        self.realtime_monitor.add_status_message(f"[ERROR]: {message}")
     
     def update_all_displays(self):
         """
@@ -316,16 +316,16 @@ def main():
     
     try:
         app = GPSGy91Monitor()
-        print("✅ Sistema inicializado correctamente")
-        print("🚀 Iniciando interfaz gráfica...")
+        print("[OK] Sistema inicializado correctamente")
+        print("[STARTUP] Iniciando interfaz grafica...")
         app.run()
         
     except Exception as e:
-        print(f"❌ Error fatal al inicializar: {e}")
+        print(f"[ERROR] Error fatal al inicializar: {e}")
         import traceback
         traceback.print_exc()
     
-    print("👋 Sistema cerrado")
+    print("[EXIT] Sistema cerrado")
 
 
 if __name__ == "__main__":

@@ -193,33 +193,69 @@ class SerialHandler:
             parts = packet_data.split(',')
             
             if len(parts) < 5:
+                if self.on_status_message:
+                    self.on_status_message(f"{timestamp}❌ Paquete LoRa incompleto: {len(parts)} partes")
                 return False
             
-            # Extraer componentes del paquete LoRa
+            # Extraer ADDRESS y LENGTH
             address = parts[0]
             length = int(parts[1])
-            payload = parts[2]
-            rssi = int(parts[3])  # Ya viene con signo negativo
-            snr = float(parts[4])
+            
+            # Encontrar donde termina el payload (antes del RSSI negativo)
+            payload_parts = []
+            rssi = None
+            snr = None
+            
+            for i in range(2, len(parts)):
+                part = parts[i]
+                # Si encontramos un número negativo que parece RSSI
+                if part.startswith('-') and len(part) > 1 and part[1:].isdigit():
+                    rssi = int(part)
+                    # El siguiente debe ser SNR
+                    if i + 1 < len(parts):
+                        snr = float(parts[i + 1])
+                    break
+                else:
+                    payload_parts.append(part)
+            
+            if rssi is None or snr is None:
+                if self.on_status_message:
+                    self.on_status_message(f"{timestamp}❌ No se pudo extraer RSSI/SNR")
+                return False
+            
+            # Reconstruir payload
+            payload = ','.join(payload_parts)
+            
+            # DEBUG: Mostrar información del paquete
+            if self.on_status_message:
+                self.on_status_message(f"{timestamp}🔍 DEBUG: Payload='{payload}', RSSI={rssi}, SNR={snr}")
             
             # Procesar el payload según su tipo
+            result = False
             if payload.startswith('P1,'):
-                return self.data_manager.parse_packet_p1(payload, rssi, snr, timestamp)
+                result = self.data_manager.parse_packet_p1(payload, rssi, snr, timestamp)
             elif payload.startswith('P2,'):
-                return self.data_manager.parse_packet_p2(payload, rssi, snr, timestamp)
+                result = self.data_manager.parse_packet_p2(payload, rssi, snr, timestamp)
             elif payload.startswith('P3,'):
-                return self.data_manager.parse_packet_p3(payload, rssi, snr, timestamp)
+                result = self.data_manager.parse_packet_p3(payload, rssi, snr, timestamp)
             elif payload.startswith('P4,'):
-                return self.data_manager.parse_packet_p4(payload, rssi, snr, timestamp)
+                result = self.data_manager.parse_packet_p4(payload, rssi, snr, timestamp)
             elif payload.startswith('P5,'):
-                return self.data_manager.parse_packet_p5(payload, rssi, snr, timestamp)
+                result = self.data_manager.parse_packet_p5(payload, rssi, snr, timestamp)
             elif payload.startswith('P6,'):
-                return self.data_manager.parse_packet_p6(payload, rssi, snr, timestamp)
+                result = self.data_manager.parse_packet_p6(payload, rssi, snr, timestamp)
             else:
                 # Payload desconocido
                 if self.on_status_message:
                     self.on_status_message(f"{timestamp}❓ Payload desconocido: {payload[:20]}...")
                 return False
+            
+            # DEBUG: Mostrar resultado del parseo
+            if self.on_status_message:
+                status = "✅ OK" if result else "❌ FALLO"
+                self.on_status_message(f"{timestamp}🔍 DEBUG: Parseo {payload[:2]} -> {status}")
+                
+            return result
                 
         except (ValueError, IndexError) as e:
             if self.on_status_message:

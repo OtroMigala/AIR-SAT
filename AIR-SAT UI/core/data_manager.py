@@ -113,12 +113,12 @@ class DataManager:
         }
     
     def _init_sensor_data(self):
-        """Inicializa datos de sensores en tiempo real - ESTRUCTURA EXACTA ORIGINAL"""
+        """Inicializa datos de sensores en tiempo real - ESTRUCTURA EXACTA ORIGINAL y nuevos sensores"""
         self.sensor_data = {
             # GPS - MANTIENE TODOS LOS CAMPOS ORIGINALES
             'latitude': 0.0, 'longitude': 0.0, 'gps_altitude': 0.0, 'speed': 0.0,
             'satellites': 0, 'fix_quality': 0, 'lat_dir': '', 'lon_dir': '',
-            'hdop': 0.0, 'vdop': 0.0, 'utc_time': '',
+            'hdop': 0.0, 'vdop': 0.0, 'utc_time': '', 'course': 0.0,
             # BMP280 - MANTIENE TODOS LOS CAMPOS ORIGINALES
             'bmp_temp': 0.0, 'pressure': 0.0, 'bmp_altitude': 0.0,
             # MPU9250 - MANTIENE TODOS LOS CAMPOS ORIGINALES
@@ -130,7 +130,21 @@ class DataManager:
             # Calculados - MANTIENE TODOS LOS CAMPOS ORIGINALES
             'total_accel': 0.0, 'total_gyro': 0.0, 'total_mag': 0.0,
             'altitude_diff': 0.0,  # Diferencia GPS vs BMP280
-            'last_update': 'No hay datos', 'system_status': 'Desconectado', 'data_quality': 'N/A'
+            # Nuevos sensores - SPS30 (Partículas)
+            'pm1_0': 0.0, 'pm2_5': 0.0, 'pm4_0': 0.0, 'pm10': 0.0,
+            'nc0_5': 0.0, 'nc1_0': 0.0, 'nc2_5': 0.0, 'nc4_0': 0.0, 'nc10': 0.0,
+            'typical_particle_size': 0.0,
+            # Nuevos sensores - MQ135 (Calidad del Aire)
+            'lpg_ppm': 0.0, 'co_ppm': 0.0, 'smoke_ppm': 0.0, 'nh4_ppm': 0.0,
+            'co2_ppm_mq135': 0.0, 'alcohol_ppm': 0.0, 'ro_value': 0.0,
+            # Nuevos sensores - MH-Z19 (CO₂)
+            'co2_ppm_mhz19': 0.0, 'mhz19_temp': 0.0, 'co2_range': 0,
+            'mhz19_status': '', 'mhz19_warmed': False,
+            # Información del sistema y comunicación
+            'sequence_id': 0, 'system_timestamp': 0, 'system_tick': 0,
+            'sensor_status_mask': 0, 'lora_rssi': 0, 'lora_snr': 0.0,
+            'last_packet_type': '', 'last_update': 'No hay datos', 
+            'system_status': 'Desconectado', 'data_quality': 'N/A'
         }
     
     def parse_gps_gy91_data(self, data_str):
@@ -204,7 +218,7 @@ class DataManager:
     def add_to_plot_buffers(self, current_time):
         """
         Agrega datos a los buffers de plotting
-        MISMA LÓGICA QUE EL CÓDIGO ORIGINAL
+        MISMA LÓGICA QUE EL CÓDIGO ORIGINAL + nuevos sensores
         """
         self.time_buffer.append(current_time)
         
@@ -218,6 +232,8 @@ class DataManager:
         self.gps_data['satellites'].append(data['satellites'])
         self.gps_data['hdop'].append(data['hdop'])
         self.gps_data['vdop'].append(data['vdop'])
+        self.gps_data['course'].append(data['course'])
+        self.gps_data['fix_quality'].append(data['fix_quality'])
         
         # BMP280 - EXACTAMENTE IGUAL AL ORIGINAL
         self.bmp280_data['temp'].append(data['bmp_temp'])
@@ -229,6 +245,7 @@ class DataManager:
         self.mpu9250_data['accel_x'].append(data['accel_x'])
         self.mpu9250_data['accel_y'].append(data['accel_y'])
         self.mpu9250_data['accel_z'].append(data['accel_z'])
+        self.mpu9250_data['total_accel'].append(data['total_accel'])
         self.mpu9250_data['gyro_x'].append(data['gyro_x'])
         self.mpu9250_data['gyro_y'].append(data['gyro_y'])
         self.mpu9250_data['gyro_z'].append(data['gyro_z'])
@@ -239,6 +256,37 @@ class DataManager:
         self.mpu9250_data['pitch'].append(data['pitch'])
         self.mpu9250_data['yaw'].append(data['yaw'])
         self.mpu9250_data['heading'].append(data['heading'])
+        
+        # Nuevos sensores - SPS30
+        self.sps30_data['pm1_0'].append(data['pm1_0'])
+        self.sps30_data['pm2_5'].append(data['pm2_5'])
+        self.sps30_data['pm4_0'].append(data['pm4_0'])
+        self.sps30_data['pm10'].append(data['pm10'])
+        self.sps30_data['nc0_5'].append(data['nc0_5'])
+        self.sps30_data['nc1_0'].append(data['nc1_0'])
+        self.sps30_data['nc2_5'].append(data['nc2_5'])
+        self.sps30_data['nc4_0'].append(data['nc4_0'])
+        self.sps30_data['nc10'].append(data['nc10'])
+        self.sps30_data['typical_size'].append(data['typical_particle_size'])
+        
+        # Nuevos sensores - MQ135
+        self.mq135_data['lpg'].append(data['lpg_ppm'])
+        self.mq135_data['co'].append(data['co_ppm'])
+        self.mq135_data['smoke'].append(data['smoke_ppm'])
+        self.mq135_data['nh4'].append(data['nh4_ppm'])
+        self.mq135_data['co2'].append(data['co2_ppm_mq135'])
+        self.mq135_data['alcohol'].append(data['alcohol_ppm'])
+        self.mq135_data['ro'].append(data['ro_value'])
+        
+        # Nuevos sensores - MH-Z19
+        self.mhz19_data['co2_ppm'].append(data['co2_ppm_mhz19'])
+        self.mhz19_data['temp'].append(data['mhz19_temp'])
+        self.mhz19_data['range'].append(data['co2_range'])
+        
+        # Datos de comunicación LoRa
+        self.lora_data['rssi'].append(data['lora_rssi'])
+        self.lora_data['snr'].append(data['lora_snr'])
+        self.lora_data['packet_count'].append(data['sequence_id'])
     
     def add_track_point(self):
         """
@@ -279,7 +327,7 @@ class DataManager:
     def update_buffer_size(self, new_size):
         """
         Actualiza el tamaño del buffer de datos
-        EXACTAMENTE IGUAL AL CÓDIGO ORIGINAL
+        EXACTAMENTE IGUAL AL CÓDIGO ORIGINAL + nuevos sensores
         """
         try:
             new_max = int(new_size)
@@ -294,6 +342,16 @@ class DataManager:
                 self.bmp280_data[key] = deque(list(self.bmp280_data[key])[-new_max:], maxlen=new_max)
             for key in self.mpu9250_data:
                 self.mpu9250_data[key] = deque(list(self.mpu9250_data[key])[-new_max:], maxlen=new_max)
+            
+            # Nuevos sensores
+            for key in self.sps30_data:
+                self.sps30_data[key] = deque(list(self.sps30_data[key])[-new_max:], maxlen=new_max)
+            for key in self.mq135_data:
+                self.mq135_data[key] = deque(list(self.mq135_data[key])[-new_max:], maxlen=new_max)
+            for key in self.mhz19_data:
+                self.mhz19_data[key] = deque(list(self.mhz19_data[key])[-new_max:], maxlen=new_max)
+            for key in self.lora_data:
+                self.lora_data[key] = deque(list(self.lora_data[key])[-new_max:], maxlen=new_max)
                 
             return True
         except ValueError:
@@ -302,7 +360,7 @@ class DataManager:
     def clear_plot_data(self):
         """
         Limpia todos los datos de las gráficas
-        EXACTAMENTE IGUAL AL CÓDIGO ORIGINAL
+        EXACTAMENTE IGUAL AL CÓDIGO ORIGINAL + nuevos sensores
         """
         self.time_buffer.clear()
         for key in self.gps_data:
@@ -311,6 +369,16 @@ class DataManager:
             self.bmp280_data[key].clear()
         for key in self.mpu9250_data:
             self.mpu9250_data[key].clear()
+        
+        # Nuevos sensores
+        for key in self.sps30_data:
+            self.sps30_data[key].clear()
+        for key in self.mq135_data:
+            self.mq135_data[key].clear()
+        for key in self.mhz19_data:
+            self.mhz19_data[key].clear()
+        for key in self.lora_data:
+            self.lora_data[key].clear()
     
     def clear_track(self):
         """Limpia el track del mapa"""
@@ -422,3 +490,286 @@ class DataManager:
             'lon': self.sensor_data['longitude'],
             'valid': self.sensor_data['latitude'] != 0.0 and self.sensor_data['longitude'] != 0.0
         }
+    
+    # ===== NUEVOS MÉTODOS PARA PAQUETES LORA =====
+    
+    def parse_packet_p1(self, payload, rssi, snr, timestamp):
+        """
+        P1 - GPS + Sistema
+        P1,SEQ_ID,TIMESTAMP,LAT,LON,ALT,SPEED,SATS,FIX_QUAL,COURSE,HDOP,STATUS_MASK
+        """
+        try:
+            parts = payload.split(',')
+            if len(parts) < 12:
+                return False
+            
+            # Actualizar datos GPS
+            self.sensor_data['sequence_id'] = int(parts[1])
+            self.sensor_data['system_timestamp'] = int(parts[2])
+            self.sensor_data['latitude'] = float(parts[3])
+            self.sensor_data['longitude'] = float(parts[4])
+            self.sensor_data['gps_altitude'] = float(parts[5])
+            self.sensor_data['speed'] = float(parts[6])
+            self.sensor_data['satellites'] = int(parts[7])
+            self.sensor_data['fix_quality'] = int(parts[8])
+            self.sensor_data['course'] = float(parts[9])
+            self.sensor_data['hdop'] = float(parts[10])
+            self.sensor_data['sensor_status_mask'] = int(parts[11])
+            
+            # Información de comunicación LoRa
+            self.sensor_data['lora_rssi'] = rssi
+            self.sensor_data['lora_snr'] = snr
+            self.sensor_data['last_packet_type'] = 'P1'
+            self.sensor_data['last_update'] = timestamp
+            
+            # Incrementar contador
+            self.data_count += 1
+            
+            return True
+            
+        except (ValueError, IndexError):
+            return False
+    
+    def parse_packet_p2(self, payload, rssi, snr, timestamp):
+        """
+        P2 - GY91 Básico (BMP280 + Acelerómetro)
+        P2,SEQ_ID,TIMESTAMP,TEMP_BMP,PRESSURE,ALT_BMP,TEMP_MPU,ACCEL_X,ACCEL_Y,ACCEL_Z,TOTAL_ACCEL
+        """
+        try:
+            parts = payload.split(',')
+            if len(parts) < 11:
+                return False
+            
+            # Actualizar información del sistema
+            self.sensor_data['sequence_id'] = int(parts[1])
+            self.sensor_data['system_timestamp'] = int(parts[2])
+            
+            # Datos BMP280
+            self.sensor_data['bmp_temp'] = float(parts[3])
+            self.sensor_data['pressure'] = float(parts[4])
+            self.sensor_data['bmp_altitude'] = float(parts[5])
+            
+            # Datos MPU9250 - Acelerómetro
+            self.sensor_data['mpu_temp'] = float(parts[6])
+            self.sensor_data['accel_x'] = float(parts[7])
+            self.sensor_data['accel_y'] = float(parts[8])
+            self.sensor_data['accel_z'] = float(parts[9])
+            self.sensor_data['total_accel'] = float(parts[10])
+            
+            # Información de comunicación LoRa
+            self.sensor_data['lora_rssi'] = rssi
+            self.sensor_data['lora_snr'] = snr
+            self.sensor_data['last_packet_type'] = 'P2'
+            self.sensor_data['last_update'] = timestamp
+            
+            # Calcular diferencia de altitudes si hay datos GPS
+            if self.sensor_data['gps_altitude'] != 0.0:
+                self.sensor_data['altitude_diff'] = self.sensor_data['gps_altitude'] - self.sensor_data['bmp_altitude']
+            
+            return True
+            
+        except (ValueError, IndexError):
+            return False
+    
+    def parse_packet_p3(self, payload, rssi, snr, timestamp):
+        """
+        P3 - MPU9250 Extendido (Giroscopio + Magnetómetro)
+        P3,SEQ_ID,TIMESTAMP,GYRO_X,GYRO_Y,GYRO_Z,MAG_X,MAG_Y,MAG_Z,ROLL,PITCH,YAW,HEADING
+        """
+        try:
+            parts = payload.split(',')
+            if len(parts) < 13:
+                return False
+            
+            # Actualizar información del sistema
+            self.sensor_data['sequence_id'] = int(parts[1])
+            self.sensor_data['system_timestamp'] = int(parts[2])
+            
+            # Datos MPU9250 - Giroscopio
+            self.sensor_data['gyro_x'] = float(parts[3])
+            self.sensor_data['gyro_y'] = float(parts[4])
+            self.sensor_data['gyro_z'] = float(parts[5])
+            
+            # Datos MPU9250 - Magnetómetro
+            self.sensor_data['mag_x'] = float(parts[6])
+            self.sensor_data['mag_y'] = float(parts[7])
+            self.sensor_data['mag_z'] = float(parts[8])
+            
+            # Datos calculados de orientación
+            self.sensor_data['roll'] = float(parts[9])
+            self.sensor_data['pitch'] = float(parts[10])
+            self.sensor_data['yaw'] = float(parts[11])
+            self.sensor_data['heading'] = float(parts[12])
+            
+            # Calcular magnitudes totales
+            self.sensor_data['total_gyro'] = math.sqrt(
+                self.sensor_data['gyro_x']**2 + 
+                self.sensor_data['gyro_y']**2 + 
+                self.sensor_data['gyro_z']**2
+            )
+            
+            self.sensor_data['total_mag'] = math.sqrt(
+                self.sensor_data['mag_x']**2 + 
+                self.sensor_data['mag_y']**2 + 
+                self.sensor_data['mag_z']**2
+            )
+            
+            # Información de comunicación LoRa
+            self.sensor_data['lora_rssi'] = rssi
+            self.sensor_data['lora_snr'] = snr
+            self.sensor_data['last_packet_type'] = 'P3'
+            self.sensor_data['last_update'] = timestamp
+            
+            return True
+            
+        except (ValueError, IndexError):
+            return False
+    
+    def parse_packet_p4(self, payload, rssi, snr, timestamp):
+        """
+        P4 - SPS30 (Sensor de Partículas)
+        P4,SEQ_ID,TIMESTAMP,PM1.0,PM2.5,PM4.0,PM10,NC0.5,NC1.0,NC2.5,NC4.0,NC10,SIZE
+        """
+        try:
+            parts = payload.split(',')
+            if len(parts) < 13:
+                return False
+            
+            # Actualizar información del sistema
+            self.sensor_data['sequence_id'] = int(parts[1])
+            self.sensor_data['system_timestamp'] = int(parts[2])
+            
+            # Concentraciones de partículas (µg/m³)
+            self.sensor_data['pm1_0'] = float(parts[3])
+            self.sensor_data['pm2_5'] = float(parts[4])
+            self.sensor_data['pm4_0'] = float(parts[5])
+            self.sensor_data['pm10'] = float(parts[6])
+            
+            # Concentraciones numéricas (#/cm³)
+            self.sensor_data['nc0_5'] = float(parts[7])
+            self.sensor_data['nc1_0'] = float(parts[8])
+            self.sensor_data['nc2_5'] = float(parts[9])
+            self.sensor_data['nc4_0'] = float(parts[10])
+            self.sensor_data['nc10'] = float(parts[11])
+            
+            # Tamaño típico de partícula (µm)
+            self.sensor_data['typical_particle_size'] = float(parts[12])
+            
+            # Información de comunicación LoRa
+            self.sensor_data['lora_rssi'] = rssi
+            self.sensor_data['lora_snr'] = snr
+            self.sensor_data['last_packet_type'] = 'P4'
+            self.sensor_data['last_update'] = timestamp
+            
+            return True
+            
+        except (ValueError, IndexError):
+            return False
+    
+    def parse_packet_p5(self, payload, rssi, snr, timestamp):
+        """
+        P5 - MQ135 (Calidad del Aire)
+        P5,SEQ_ID,TIMESTAMP,LPG,CO,SMOKE,NH4,CO2,ALCOHOL,RO,SYS_TICK
+        """
+        try:
+            parts = payload.split(',')
+            if len(parts) < 11:
+                return False
+            
+            # Actualizar información del sistema
+            self.sensor_data['sequence_id'] = int(parts[1])
+            self.sensor_data['system_timestamp'] = int(parts[2])
+            
+            # Concentraciones de gases (ppm)
+            self.sensor_data['lpg_ppm'] = float(parts[3])
+            self.sensor_data['co_ppm'] = float(parts[4])
+            self.sensor_data['smoke_ppm'] = float(parts[5])
+            self.sensor_data['nh4_ppm'] = float(parts[6])
+            self.sensor_data['co2_ppm_mq135'] = float(parts[7])
+            self.sensor_data['alcohol_ppm'] = float(parts[8])
+            
+            # Valor Ro de calibración
+            self.sensor_data['ro_value'] = float(parts[9])
+            
+            # System tick
+            self.sensor_data['system_tick'] = int(parts[10])
+            
+            # Información de comunicación LoRa
+            self.sensor_data['lora_rssi'] = rssi
+            self.sensor_data['lora_snr'] = snr
+            self.sensor_data['last_packet_type'] = 'P5'
+            self.sensor_data['last_update'] = timestamp
+            
+            return True
+            
+        except (ValueError, IndexError):
+            return False
+    
+    def parse_packet_p6(self, payload, rssi, snr, timestamp):
+        """
+        P6 - MH-Z19 (CO₂)
+        P6,SEQ_ID,TIMESTAMP,CO2_PPM,TEMP,RANGE,STATUS,WARMED,SYS_TICK
+        """
+        try:
+            parts = payload.split(',')
+            if len(parts) < 9:
+                return False
+            
+            # Actualizar información del sistema
+            self.sensor_data['sequence_id'] = int(parts[1])
+            self.sensor_data['system_timestamp'] = int(parts[2])
+            
+            # Datos del sensor MH-Z19
+            self.sensor_data['co2_ppm_mhz19'] = int(parts[3])
+            self.sensor_data['mhz19_temp'] = float(parts[4])
+            self.sensor_data['co2_range'] = int(parts[5])
+            self.sensor_data['mhz19_status'] = parts[6].strip()
+            self.sensor_data['mhz19_warmed'] = parts[7].strip().upper() == 'Y'
+            
+            # System tick
+            self.sensor_data['system_tick'] = int(parts[8])
+            
+            # Información de comunicación LoRa
+            self.sensor_data['lora_rssi'] = rssi
+            self.sensor_data['lora_snr'] = snr
+            self.sensor_data['last_packet_type'] = 'P6'
+            self.sensor_data['last_update'] = timestamp
+            
+            return True
+            
+        except (ValueError, IndexError):
+            return False
+    
+    def decode_sensor_status_mask(self, mask):
+        """
+        Decodifica la bitmask de sensores activos
+        """
+        sensors = {
+            'GPS': bool(mask & 0x01),      # Bit 0
+            'GY91': bool(mask & 0x02),     # Bit 1
+            'SPS30': bool(mask & 0x04),    # Bit 2
+            'MQ135': bool(mask & 0x08),    # Bit 3
+            'LORA': bool(mask & 0x10),     # Bit 4
+            'MHZ19': bool(mask & 0x20)     # Bit 5
+        }
+        return sensors
+    
+    def get_air_quality_index(self):
+        """
+        Calcula un índice de calidad del aire basado en los sensores disponibles
+        """
+        if self.sensor_data['pm2_5'] == 0 and self.sensor_data['co2_ppm_mhz19'] == 0:
+            return "N/A", "#888888"
+        
+        # Índice basado en PM2.5 (estándar EPA)
+        pm25 = self.sensor_data['pm2_5']
+        co2 = max(self.sensor_data['co2_ppm_mhz19'], self.sensor_data['co2_ppm_mq135'])
+        
+        if pm25 <= 12 and co2 <= 1000:
+            return "BUENA", "#00ff00"
+        elif pm25 <= 35 and co2 <= 2000:
+            return "MODERADA", "#ffff00"
+        elif pm25 <= 55 and co2 <= 5000:
+            return "MALA", "#ff8800"
+        else:
+            return "PELIGROSA", "#ff0000"
