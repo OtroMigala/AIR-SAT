@@ -140,12 +140,24 @@ class SerialHandler:
     def _process_serial_data(self, decoded_line):
         """
         Procesa datos recibidos del puerto serial
-        MANTIENE LA LÓGICA EXACTA DEL CÓDIGO ORIGINAL
+        Ahora maneja el formato de paquetes LoRa: +RCV=ADDRESS,LENGTH,PAYLOAD,-RSSI,SNR
         """
         timestamp = f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] "
         
-        # Procesar líneas que comienzan con "DATA:" - EXACTAMENTE IGUAL AL ORIGINAL
-        if decoded_line.startswith("DATA:"):
+        # Procesar paquetes LoRa con formato +RCV
+        if decoded_line.startswith("+RCV="):
+            if self._process_lora_packet(decoded_line, timestamp):
+                # Notificar que hay nuevos datos disponibles
+                if self.on_data_received:
+                    self.on_data_received()
+                
+                # Logging cada 100 muestras
+                if self.data_manager.data_count % DEBUG_CONFIG['log_every_n_samples'] == 0:
+                    if self.on_status_message:
+                        self.on_status_message(f"{timestamp}📊 Sistema actualizado - Muestra {self.data_manager.data_count}")
+        
+        # Procesar líneas que comienzan con "DATA:" - Compatibilidad con formato anterior
+        elif decoded_line.startswith("DATA:"):
             csv_data = decoded_line[5:].strip()  # Remover "DATA:" del inicio
             
             if self.data_manager.parse_gps_gy91_data(csv_data):
@@ -153,23 +165,102 @@ class SerialHandler:
                 if self.on_data_received:
                     self.on_data_received()
                 
-                # Logging cada 100 muestras - EXACTAMENTE IGUAL AL ORIGINAL
+                # Logging cada 100 muestras
                 if self.data_manager.data_count % DEBUG_CONFIG['log_every_n_samples'] == 0:
                     if self.on_status_message:
                         self.on_status_message(f"{timestamp}📊 Sistema actualizado - Muestra {self.data_manager.data_count}")
         
-        # Procesar mensajes de estado - EXACTAMENTE IGUAL AL ORIGINAL
+        # Procesar mensajes de estado
         elif decoded_line.startswith("STATUS:"):
             status_msg = decoded_line[7:].strip()
             if self.on_status_message:
                 self.on_status_message(f"{timestamp}ℹ️ {status_msg}")
         
-        # Otros mensajes - EXACTAMENTE IGUAL AL ORIGINAL
+        # Otros mensajes
         else:
-            # Solo mostrar ocasionalmente - IGUAL AL ORIGINAL
+            # Solo mostrar ocasionalmente
             if self.data_manager.data_count % DEBUG_CONFIG['show_raw_every_n'] == 0:
                 if self.on_status_message:
                     self.on_status_message(f"{timestamp}Raw: {decoded_line}")
+    
+    def _process_lora_packet(self, lora_line, timestamp):
+        """
+        Procesa paquetes LoRa con formato: +RCV=ADDRESS,LENGTH,PAYLOAD,-RSSI,SNR
+        """
+        try:
+            # Remover "+RCV=" del inicio
+            packet_data = lora_line[5:].strip()
+            parts = packet_data.split(',')
+            
+            if len(parts) < 5:
+                if self.on_status_message:
+                    self.on_status_message(f"{timestamp}❌ Paquete LoRa incompleto: {len(parts)} partes")
+                return False
+            
+            # Extraer ADDRESS y LENGTH
+            address = parts[0]
+            length = int(parts[1])
+            
+            # Encontrar donde termina el payload (antes del RSSI negativo)
+            payload_parts = []
+            rssi = None
+            snr = None
+            
+            for i in range(2, len(parts)):
+                part = parts[i]
+                # Si encontramos un número negativo que parece RSSI
+                if part.startswith('-') and len(part) > 1 and part[1:].isdigit():
+                    rssi = int(part)
+                    # El siguiente debe ser SNR
+                    if i + 1 < len(parts):
+                        snr = float(parts[i + 1])
+                    break
+                else:
+                    payload_parts.append(part)
+            
+            if rssi is None or snr is None:
+                if self.on_status_message:
+                    self.on_status_message(f"{timestamp}❌ No se pudo extraer RSSI/SNR")
+                return False
+            
+            # Reconstruir payload
+            payload = ','.join(payload_parts)
+            
+            # DEBUG: Mostrar información del paquete
+            if self.on_status_message:
+                self.on_status_message(f"{timestamp}🔍 DEBUG: Payload='{payload}', RSSI={rssi}, SNR={snr}")
+            
+            # Procesar el payload según su tipo
+            result = False
+            if payload.startswith('P1,'):
+                result = self.data_manager.parse_packet_p1(payload, rssi, snr, timestamp)
+            elif payload.startswith('P2,'):
+                result = self.data_manager.parse_packet_p2(payload, rssi, snr, timestamp)
+            elif payload.startswith('P3,'):
+                result = self.data_manager.parse_packet_p3(payload, rssi, snr, timestamp)
+            elif payload.startswith('P4,'):
+                result = self.data_manager.parse_packet_p4(payload, rssi, snr, timestamp)
+            elif payload.startswith('P5,'):
+                result = self.data_manager.parse_packet_p5(payload, rssi, snr, timestamp)
+            elif payload.startswith('P6,'):
+                result = self.data_manager.parse_packet_p6(payload, rssi, snr, timestamp)
+            else:
+                # Payload desconocido
+                if self.on_status_message:
+                    self.on_status_message(f"{timestamp}❓ Payload desconocido: {payload[:20]}...")
+                return False
+            
+            # DEBUG: Mostrar resultado del parseo
+            if self.on_status_message:
+                status = "✅ OK" if result else "❌ FALLO"
+                self.on_status_message(f"{timestamp}🔍 DEBUG: Parseo {payload[:2]} -> {status}")
+                
+            return result
+                
+        except (ValueError, IndexError) as e:
+            if self.on_status_message:
+                self.on_status_message(f"{timestamp}❌ Error procesando paquete LoRa: {str(e)}")
+            return False
     
     def is_connected(self):
         """Verifica si hay conexión activa"""

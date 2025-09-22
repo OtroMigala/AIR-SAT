@@ -6,10 +6,17 @@ Corrige el problema de renderizado de imágenes de fondo
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
-from PIL import Image, ImageTk
 import math
 import sys
 import os
+
+# Try to import PIL, make it optional
+try:
+    from PIL import Image, ImageTk
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("PIL/Pillow not available - image features disabled")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.config import FILE_FORMATS, IMAGE_CALIBRATION
 
@@ -39,6 +46,10 @@ class ImageHandler:
     
     def load_background_image(self, parent_window=None):
         """Carga una imagen de fondo para el mapa"""
+        if not PIL_AVAILABLE:
+            messagebox.showerror("Error", "PIL/Pillow no está disponible. Las funciones de imagen están deshabilitadas.")
+            return False
+            
         file_path = filedialog.askopenfilename(
             title="Seleccionar imagen de mapa",
             filetypes=FILE_FORMATS['image_types']

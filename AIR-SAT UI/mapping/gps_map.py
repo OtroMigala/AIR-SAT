@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.config import MAP_CONFIG, FILE_FORMATS, EXPORT_CONFIG
 from .image_handler import ImageHandler
 from .map_renderer import MapRenderer
+from .google_maps_renderer import GoogleMapsRenderer
 
 class GPSMapSystem:
     """
@@ -28,6 +29,9 @@ class GPSMapSystem:
         # Inicializar módulos
         self.image_handler = ImageHandler(data_manager)
         self.map_renderer = None  # Se inicializa después del canvas
+        
+        # Map type selection
+        self.use_google_maps = True  # Toggle between Google Maps and original canvas
         
         # Variables de control del mapa - EXACTAMENTE IGUAL AL ORIGINAL
         self.zoom_level = 1.0
@@ -60,7 +64,10 @@ class GPSMapSystem:
         self.setup_map_canvas()
         
         # Inicializar renderer después de crear canvas
-        self.map_renderer = MapRenderer(self.map_canvas, self.data_manager, self.image_handler)
+        if self.use_google_maps:
+            self.map_renderer = GoogleMapsRenderer(self.canvas_frame, self.data_manager, self.image_handler)
+        else:
+            self.map_renderer = MapRenderer(self.map_canvas, self.data_manager, self.image_handler)
         
         # Configurar zoom inicial
         self.set_zoom_scale(MAP_CONFIG['default_zoom_scale'])
@@ -74,16 +81,30 @@ class GPSMapSystem:
         map_control_frame.pack(fill="x", padx=5, pady=5)
         
         # Título
-        ctk.CTkLabel(map_control_frame, text="🎯 MAPA GPS DE PRECISIÓN - BÚSQUEDA DE SATÉLITE",
-                   font=ctk.CTkFont(size=14, weight="bold")).pack(side="left", padx=10)
+        # Title with map type toggle
+        title_frame = ctk.CTkFrame(map_control_frame)
+        title_frame.pack(side="left", padx=10)
+        
+        ctk.CTkLabel(title_frame, text="MAPA GPS DE PRECISION - BUSQUEDA DE SATELITE",
+                   font=ctk.CTkFont(size=14, weight="bold")).pack()
+        
+        # Map type toggle
+        map_type_frame = ctk.CTkFrame(title_frame)
+        map_type_frame.pack(fill="x", pady=2)
+        
+        self.map_type_var = ctk.StringVar(value="Google Maps" if self.use_google_maps else "Canvas")
+        ctk.CTkLabel(map_type_frame, text="Map Type:", font=ctk.CTkFont(size=10)).pack(side="left", padx=2)
+        ctk.CTkOptionMenu(map_type_frame, values=["Google Maps", "Canvas"], 
+                         variable=self.map_type_var, command=self.toggle_map_type,
+                         width=120).pack(side="left", padx=2)
         
         # Controles de zoom precisión
         zoom_frame = ctk.CTkFrame(map_control_frame)
         zoom_frame.pack(side="left", padx=10)
         
         ctk.CTkLabel(zoom_frame, text="Zoom:", font=ctk.CTkFont(size=10)).pack(side="left", padx=2)
-        ctk.CTkButton(zoom_frame, text="🔍+", width=40, command=self.zoom_in).pack(side="left", padx=2)
-        ctk.CTkButton(zoom_frame, text="🔍-", width=40, command=self.zoom_out).pack(side="left", padx=2)
+        ctk.CTkButton(zoom_frame, text="Zoom+", width=50, command=self.zoom_in).pack(side="left", padx=2)
+        ctk.CTkButton(zoom_frame, text="Zoom-", width=50, command=self.zoom_out).pack(side="left", padx=2)
         
         # Zoom presets para búsqueda - EXACTAMENTE IGUAL AL ORIGINAL
         preset_frame = ctk.CTkFrame(map_control_frame)
@@ -104,8 +125,8 @@ class GPSMapSystem:
                                                command=self.toggle_auto_center)
         self.auto_center_check.pack(side="left", padx=5)
         
-        ctk.CTkButton(view_frame, text="📍 Centrar", width=80, command=self.center_map).pack(side="left", padx=2)
-        ctk.CTkButton(view_frame, text="🗑️ Limpiar", width=80, command=self.clear_track).pack(side="left", padx=2)
+        ctk.CTkButton(view_frame, text="Centrar", width=80, command=self.center_map).pack(side="left", padx=2)
+        ctk.CTkButton(view_frame, text="Limpiar", width=80, command=self.clear_track).pack(side="left", padx=2)
         
         # Opciones de visualización - MEJORADO CON IMAGEN
         self.setup_display_options(map_control_frame)
@@ -119,9 +140,9 @@ class GPSMapSystem:
         image_frame = ctk.CTkFrame(display_frame)
         image_frame.pack(side="left", padx=5)
         
-        ctk.CTkButton(image_frame, text="📷 Cargar Mapa", width=100, 
+        ctk.CTkButton(image_frame, text="Cargar Mapa", width=100, 
                      command=self.load_background_image).pack(side="top", padx=2, pady=1)
-        ctk.CTkButton(image_frame, text="🔧 Calibrar", width=100, 
+        ctk.CTkButton(image_frame, text="Calibrar", width=100, 
                      command=self.calibrate_image).pack(side="top", padx=2, pady=1)
         
         opacity_frame = ctk.CTkFrame(image_frame)
@@ -152,9 +173,9 @@ class GPSMapSystem:
         control_frame2 = ctk.CTkFrame(display_frame)
         control_frame2.pack(side="left", padx=5)
         
-        ctk.CTkButton(control_frame2, text="📌 Waypoint", width=90, 
+        ctk.CTkButton(control_frame2, text="Waypoint", width=90, 
                      command=self.add_waypoint).pack(side="top", padx=2, pady=1)
-        ctk.CTkButton(control_frame2, text="💾 Guardar Track", width=90, 
+        ctk.CTkButton(control_frame2, text="Guardar Track", width=90, 
                      command=self.save_track).pack(side="top", padx=2, pady=1)
     
     def setup_info_frame(self):
@@ -166,7 +187,7 @@ class GPSMapSystem:
         precision_info_frame = ctk.CTkFrame(info_frame)
         precision_info_frame.pack(side="left", fill="x", expand=True, padx=2)
         
-        ctk.CTkLabel(precision_info_frame, text="📊 INFORMACIÓN DE PRECISIÓN",
+        ctk.CTkLabel(precision_info_frame, text="INFORMACION DE PRECISION",
                    font=ctk.CTkFont(size=12, weight="bold")).pack()
         
         precision_data_frame = ctk.CTkFrame(precision_info_frame)
@@ -175,7 +196,7 @@ class GPSMapSystem:
         # Coordenadas actuales - EXACTAMENTE IGUAL AL ORIGINAL
         coords_frame = ctk.CTkFrame(precision_data_frame)
         coords_frame.pack(fill="x", pady=2)
-        ctk.CTkLabel(coords_frame, text="📍 Posición:", width=100).pack(side="left", padx=5)
+        ctk.CTkLabel(coords_frame, text="Posicion:", width=100).pack(side="left", padx=5)
         self.ui_elements['map_coords_label'] = ctk.CTkLabel(coords_frame, text="0.000000°, 0.000000°",
                                            font=ctk.CTkFont(size=11, weight="bold"))
         self.ui_elements['map_coords_label'].pack(side="left", padx=5)
@@ -183,7 +204,7 @@ class GPSMapSystem:
         # Precisión HDOP - EXACTAMENTE IGUAL AL ORIGINAL
         hdop_frame = ctk.CTkFrame(precision_data_frame)
         hdop_frame.pack(fill="x", pady=2)
-        ctk.CTkLabel(hdop_frame, text="🎯 HDOP:", width=100).pack(side="left", padx=5)
+        ctk.CTkLabel(hdop_frame, text="HDOP:", width=100).pack(side="left", padx=5)
         self.ui_elements['map_hdop_label'] = ctk.CTkLabel(hdop_frame, text="0.0 (Error: 0.0m)",
                                          font=ctk.CTkFont(size=11, weight="bold"))
         self.ui_elements['map_hdop_label'].pack(side="left", padx=5)
@@ -191,7 +212,7 @@ class GPSMapSystem:
         # Escala actual - EXACTAMENTE IGUAL AL ORIGINAL
         scale_frame = ctk.CTkFrame(precision_data_frame)
         scale_frame.pack(fill="x", pady=2)
-        ctk.CTkLabel(scale_frame, text="📏 Escala:", width=100).pack(side="left", padx=5)
+        ctk.CTkLabel(scale_frame, text="Escala:", width=100).pack(side="left", padx=5)
         self.ui_elements['map_scale_label'] = ctk.CTkLabel(scale_frame, text="1.0 m/píxel",
                                           font=ctk.CTkFont(size=11, weight="bold"))
         self.ui_elements['map_scale_label'].pack(side="left", padx=5)
@@ -204,7 +225,7 @@ class GPSMapSystem:
         track_info_frame = ctk.CTkFrame(parent)
         track_info_frame.pack(side="right", fill="y", padx=2)
         
-        ctk.CTkLabel(track_info_frame, text="📈 ESTADÍSTICAS TRACK",
+        ctk.CTkLabel(track_info_frame, text="ESTADISTICAS TRACK",
                    font=ctk.CTkFont(size=12, weight="bold")).pack()
         
         track_data_frame = ctk.CTkFrame(track_info_frame)
@@ -233,45 +254,77 @@ class GPSMapSystem:
     
     def setup_map_canvas(self):
         """Configura canvas del mapa - MEJORADO PARA LLENAR ESPACIO"""
-        canvas_frame = ctk.CTkFrame(self.parent)
-        canvas_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        self.canvas_frame = ctk.CTkFrame(self.parent)
+        self.canvas_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
-        # Canvas con scrollbars - Asegurar tamaño mínimo
-        self.map_canvas = tk.Canvas(canvas_frame, bg=MAP_CONFIG['colors']["background"], 
-                                   highlightthickness=0, width=800, height=600)
-        
-        # Scrollbars
-        v_scrollbar = ctk.CTkScrollbar(canvas_frame, orientation="vertical", command=self.map_canvas.yview)
-        h_scrollbar = ctk.CTkScrollbar(canvas_frame, orientation="horizontal", command=self.map_canvas.xview)
-        
-        self.map_canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
-        
-        # Grid layout
-        self.map_canvas.grid(row=0, column=0, sticky="nsew")
-        v_scrollbar.grid(row=0, column=1, sticky="ns")
-        h_scrollbar.grid(row=1, column=0, sticky="ew")
-        
-        canvas_frame.grid_rowconfigure(0, weight=1)
-        canvas_frame.grid_columnconfigure(0, weight=1)
-        
-        # Bind para actualizar tamaño cuando cambia el frame
-        canvas_frame.bind("<Configure>", self._on_canvas_frame_resize)
-        
-        # Eventos del mouse para el mapa - EXACTAMENTE IGUAL AL ORIGINAL
-        self.map_canvas.bind("<Button-1>", self.on_map_click)
-        self.map_canvas.bind("<B1-Motion>", self.on_map_drag)
-        self.map_canvas.bind("<MouseWheel>", self.on_map_wheel)
-        self.map_canvas.bind("<Button-3>", self.on_map_right_click)
+        # Only create canvas elements if using canvas mode
+        if not self.use_google_maps:
+            # Canvas con scrollbars - Asegurar tamaño mínimo
+            self.map_canvas = tk.Canvas(self.canvas_frame, bg=MAP_CONFIG['colors']["background"], 
+                                       highlightthickness=0, width=800, height=600)
+            
+            # Scrollbars
+            v_scrollbar = ctk.CTkScrollbar(self.canvas_frame, orientation="vertical", command=self.map_canvas.yview)
+            h_scrollbar = ctk.CTkScrollbar(self.canvas_frame, orientation="horizontal", command=self.map_canvas.xview)
+            
+            self.map_canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+            
+            # Grid layout
+            self.map_canvas.grid(row=0, column=0, sticky="nsew")
+            v_scrollbar.grid(row=0, column=1, sticky="ns")
+            h_scrollbar.grid(row=1, column=0, sticky="ew")
+            
+            self.canvas_frame.grid_rowconfigure(0, weight=1)
+            self.canvas_frame.grid_columnconfigure(0, weight=1)
+            
+            # Bind para actualizar tamaño cuando cambia el frame
+            self.canvas_frame.bind("<Configure>", self._on_canvas_frame_resize)
+            
+            # Eventos del mouse para el mapa - EXACTAMENTE IGUAL AL ORIGINAL
+            self.map_canvas.bind("<Button-1>", self.on_map_click)
+            self.map_canvas.bind("<B1-Motion>", self.on_map_drag)
+            self.map_canvas.bind("<MouseWheel>", self.on_map_wheel)
+            self.map_canvas.bind("<Button-3>", self.on_map_right_click)
+        else:
+            # For Google Maps, the GoogleMapsRenderer will handle the frame content
+            self.map_canvas = None
     
     def _on_canvas_frame_resize(self, event):
         """Maneja el redimensionamiento del frame del canvas"""
-        if event.widget == self.map_canvas.master:
+        if self.map_canvas and event.widget == self.map_canvas.master:
             # Actualizar scroll region para permitir scrolling
             self.map_canvas.configure(scrollregion=self.map_canvas.bbox("all"))
             
             # Opcional: Actualizar el mapa cuando cambia el tamaño
             if self.map_initialized:
                 self.parent.after_idle(self.update_map)
+    
+    def toggle_map_type(self, selected_type):
+        """Toggle between Google Maps and Canvas rendering"""
+        new_use_google_maps = (selected_type == "Google Maps")
+        
+        if new_use_google_maps != self.use_google_maps:
+            self.use_google_maps = new_use_google_maps
+            
+            # Clear the current canvas frame
+            for widget in self.canvas_frame.winfo_children():
+                widget.destroy()
+            
+            # Recreate canvas setup
+            self.setup_map_canvas()
+            
+            # Recreate renderer
+            if self.use_google_maps:
+                self.map_renderer = GoogleMapsRenderer(self.canvas_frame, self.data_manager, self.image_handler)
+            else:
+                self.map_renderer = MapRenderer(self.map_canvas, self.data_manager, self.image_handler)
+            
+            # Initialize the new renderer
+            self.map_renderer.draw_initial_map()
+            
+            # Update with current data
+            if self.map_initialized:
+                self.update_map()
     
     # === MÉTODOS DE CONTROL DEL MAPA ===
     
@@ -280,8 +333,11 @@ class GPSMapSystem:
         Establece el zoom basado en metros por ventana
         EXACTAMENTE IGUAL AL CÓDIGO ORIGINAL
         """
-        canvas_width = self.map_canvas.winfo_width() or 800
-        canvas_height = self.map_canvas.winfo_height() or 600
+        if self.map_canvas:
+            canvas_width = self.map_canvas.winfo_width() or 800
+            canvas_height = self.map_canvas.winfo_height() or 600
+        else:
+            canvas_width, canvas_height = 800, 600  # Default for Google Maps
         min_dimension = min(canvas_width, canvas_height)
         
         # Calcular metros por píxel para que la escala total sea meters_scale
@@ -458,56 +514,60 @@ class GPSMapSystem:
     
     def on_map_click(self, event):
         """Maneja el click en el mapa - EXACTAMENTE IGUAL AL ORIGINAL"""
-        self.map_last_x = event.x
-        self.map_last_y = event.y
+        if not self.use_google_maps:
+            self.map_last_x = event.x
+            self.map_last_y = event.y
     
     def on_map_drag(self, event):
         """Maneja el arrastre del mapa - EXACTAMENTE IGUAL AL ORIGINAL"""
-        dx = event.x - self.map_last_x
-        dy = event.y - self.map_last_y
-        
-        # Convertir píxeles a metros
-        dx_meters = dx * self.meters_per_pixel
-        dy_meters = -dy * self.meters_per_pixel  # Y negativo
-        
-        # Convertir metros a cambio en lat/lon
-        R = 6371000  # Radio de la Tierra
-        dlat = dy_meters / R * 180 / math.pi
-        dlon = dx_meters / (R * math.cos(math.radians(self.data_manager.map_center["lat"]))) * 180 / math.pi
-        
-        self.data_manager.map_center["lat"] -= dlat
-        self.data_manager.map_center["lon"] -= dlon
-        
-        self.map_last_x = event.x
-        self.map_last_y = event.y
-        
-        # Desactivar auto-centrar temporalmente
-        self.auto_center = False
-        self.auto_center_var.set(False)
-        
-        self.update_map()
+        if not self.use_google_maps:
+            dx = event.x - self.map_last_x
+            dy = event.y - self.map_last_y
+            
+            # Convertir píxeles a metros
+            dx_meters = dx * self.meters_per_pixel
+            dy_meters = -dy * self.meters_per_pixel  # Y negativo
+            
+            # Convertir metros a cambio en lat/lon
+            R = 6371000  # Radio de la Tierra
+            dlat = dy_meters / R * 180 / math.pi
+            dlon = dx_meters / (R * math.cos(math.radians(self.data_manager.map_center["lat"]))) * 180 / math.pi
+            
+            self.data_manager.map_center["lat"] -= dlat
+            self.data_manager.map_center["lon"] -= dlon
+            
+            self.map_last_x = event.x
+            self.map_last_y = event.y
+            
+            # Desactivar auto-centrar temporalmente
+            self.auto_center = False
+            self.auto_center_var.set(False)
+            
+            self.update_map()
     
     def on_map_wheel(self, event):
         """Maneja el zoom con la rueda del mouse - EXACTAMENTE IGUAL AL ORIGINAL"""
-        if event.delta > 0:
-            self.zoom_in()
-        else:
-            self.zoom_out()
+        if not self.use_google_maps:
+            if event.delta > 0:
+                self.zoom_in()
+            else:
+                self.zoom_out()
     
     def on_map_right_click(self, event):
         """Maneja el click derecho en el mapa - EXACTAMENTE IGUAL AL ORIGINAL"""
-        # Crear menú contextual
-        context_menu = tk.Menu(self.parent, tearoff=0)
-        context_menu.add_command(label="📍 Centrar aquí", command=self.center_map)
-        context_menu.add_command(label="📌 Añadir waypoint", command=self.add_waypoint)
-        context_menu.add_separator()
-        context_menu.add_command(label="🗑️ Limpiar track", command=self.clear_track)
-        context_menu.add_command(label="🔄 Reset zoom", command=lambda: self.set_zoom_scale(20))
-        
-        try:
-            context_menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            context_menu.grab_release()
+        if not self.use_google_maps:
+            # Crear menú contextual
+            context_menu = tk.Menu(self.parent, tearoff=0)
+            context_menu.add_command(label="📍 Centrar aquí", command=self.center_map)
+            context_menu.add_command(label="📌 Añadir waypoint", command=self.add_waypoint)
+            context_menu.add_separator()
+            context_menu.add_command(label="🗑️ Limpiar track", command=self.clear_track)
+            context_menu.add_command(label="🔄 Reset zoom", command=lambda: self.set_zoom_scale(20))
+            
+            try:
+                context_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                context_menu.grab_release()
     
     # === ACTUALIZACIÓN Y LIMPIEZA ===
     
